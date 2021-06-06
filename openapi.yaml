@@ -1,0 +1,782 @@
+openapi: 3.0.3
+info:
+  description: 数据库作业设计
+  version: 1.0.0
+  title: 学生组织管理系统
+  license:
+    name: 'Apache 2.0'
+    url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
+
+servers:
+  - url: /api
+
+tags:
+  - name: section
+    description: 主席团应固定为 1 号，不可删除，没有配额
+
+paths:
+  /login:
+    get:
+      summary: 成员登录
+      description: 使用 Flask 登录组件或自行比对密码哈希。
+      parameters:
+        - name: stuid
+          in: query
+          description: 学号
+          required: true
+          schema:
+            type: string
+        - name: password
+          in: query
+          description: 密码
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: 登陆成功。应设置 Cookie 。
+          content:
+            application:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  contact:
+                    type: string
+                  section:
+                    type: integer
+                  position:
+                    type: string
+              example:
+                name: 张三
+                contact: 18888888888
+                section: 2
+                position: 干事
+        401:
+          description: 登陆失败。
+
+  /logout:
+    get:
+      summary: 登出
+      responses:
+        200:
+          description: 成功登出
+
+  /candidate:
+    post:
+      tags:
+        - candidate
+      summary: 新生注册
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                stuid:
+                  description: 学号
+                  type: string
+                grade:
+                  type: string
+                contact:
+                  type: string
+                application:
+                  type: array
+                  items:
+                    type: integer
+                brief:
+                  type: string
+                attachment:
+                  type: string
+                  description: 附件 URL
+      responses:
+        200:
+          description: 提交成功。
+
+  /candidate/upload:
+    post:
+      tags:
+        - candidate
+      summary: 附件上传
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              properties:
+                attachment:
+                  type: string
+                  format: binary
+      responses:
+        200:
+          description: 上传成功。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+        413:
+          description: 文件过大
+
+  /candidates:
+    get:
+      tags:
+        - candidate
+      summary: 查询新生列表
+      description: 主席与部长可见。
+      parameters:
+        - name: section
+          in: query
+          description: 部门筛选
+          schema:
+            type: integer
+        - name: name
+          in: query
+          description: 根据姓名查找
+          schema:
+            type: string
+        - name: current_user
+          in: cookie
+          schema:
+            type: integer
+      responses:
+        200:
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    name:
+                      type: string
+                    grade:
+                      type: string
+                    contact:
+                      type: string
+                    application:
+                      type: array
+                      items:
+                        type: integer
+                    admitted:
+                      type: array
+                      description: 希望录用新生的部门
+                      items:
+                        type: integer
+                    avg_score:
+                      type: number
+        403:
+          description: 禁止访问
+    delete:
+      tags:
+        - candidate
+      summary: 清空新生列表
+      description: 主席可操作
+      responses:
+        200:
+          description: 操作成功
+        403:
+          description: 禁止访问
+
+  /candidates/start:
+    put:
+      tags:
+        - candidate
+      summary: 开始接受报名
+      description: 主席可操作
+      responses:
+        200:
+          description: 操作成功
+        403:
+          description: 禁止访问
+
+  /candidates/stop:
+    put:
+      tags:
+        - candidate
+      summary: 停止接受报名
+      description: 主席可操作
+      responses:
+        200:
+          description: 操作成功
+        403:
+          description: 禁止访问
+
+  /candidate/{id}:
+    get:
+      tags:
+        - candidate
+      summary: 查询某新生信息
+      description: 主席与部长可见。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  grade:
+                    type: string
+                  contact:
+                    type: string
+                  application:
+                    type: array
+                    items:
+                      type: integer
+                  admitted:
+                    type: array
+                    items:
+                      type: integer
+                  brief:
+                    type: string
+                  attachment:
+                    type: string
+        403:
+          description: 禁止访问
+        404:
+          description: 新生不存在
+
+  /candidate/{id}/review:
+    put:
+      tags:
+        - candidate
+      summary: 对新生评价
+      description: 主席和部长可评价。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: reviewer
+          in: cookie
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                score:
+                  type: integer
+                text:
+                  type: string
+      responses:
+        200:
+          description: 评价成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  avg_score:
+                    type: number
+        403:
+          description: 禁止访问
+        404:
+          description: 新生不存在
+
+  /candidate/{id}/reviews:
+    get:
+      tags:
+        - candidate
+      summary: 查看对新生的评价
+      description: 主席和部长可查看。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: 查看成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    reviewer:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                        section:
+                          type: integer
+                    reviewTime:
+                      type: string
+                      format: datetime
+                    text:
+                      type: string
+                    score:
+                      type: integer
+        403:
+          description: 禁止访问
+        404:
+          description: 新生不存在
+
+  /candidate/{id}/admit:
+    put:
+      tags:
+        - candidate
+      summary: 新生录用操作
+      description: 部长可录用有本部门志愿的新生
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: reviewer
+          in: cookie
+          schema:
+            type: integer
+      responses:
+        200:
+          description: 录用暂时成功
+          content:
+            application/json:
+              schema:
+                description: 同时录用了此同学的部门
+                type: array
+                items:
+                  type: integer
+        403:
+          description: 禁止访问
+        404:
+          description: 新生不存在
+
+  /candidate/{id}/dismiss:
+    put:
+      tags:
+        - candidate
+      summary: 新生取消录用操作
+      description: 部长可取消录用有本部门志愿的新生
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: reviewer
+          in: cookie
+          schema:
+            type: integer
+      responses:
+        200:
+          description: 取消录用成功
+          content:
+            application/json:
+              schema:
+                description: 同时录用了此同学的部门
+                type: array
+                items:
+                  type: integer
+        403:
+          description: 禁止访问
+        404:
+          description: 新生不存在
+
+  /candidates/validate:
+    get:
+      tags:
+        - candidate
+      summary: 获取可录用的新生
+      description: 主席和部长可查看可录用的新生，每个部门刚好达到配额，没有新生被多个部门同时录用
+      responses:
+        200:
+          description: 查询可录用新生成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  validated:
+                    description: 满足完成录用的条件
+                    type: boolean
+        403:
+          description: 禁止访问
+    post:
+      tags:
+        - candidate
+      summary: 完成新生录用
+      description: 主席完成新生录用，为被录取的新生创建用户，加入数据库中
+      responses:
+        200:
+          description: 新生录用成功
+        403:
+          description: 禁止访问
+
+  /sections:
+    get:
+      tags:
+        - section
+      summary: 查询部门
+      responses:
+        200:
+          description: 部门列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    name:
+                      type: string
+                    quota:
+                      description: 部门配额
+                      type: integer
+                    memberCount:
+                      description: 成员数量
+                      type: integer
+                    heads:
+                      description: 部长
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                          name:
+                            type: string
+              example:
+                - id: 1
+                  name: 主席团
+                  quota: 0
+                  memberCount: 5
+                  heads:
+                    - id: 1
+                      name: Alice
+                - id: 2
+                  name: 宣传部
+                  quota: 15
+                  memberCount: 5
+                  heads:
+                    - id: 2
+                      name: Bob
+                - id: 3
+                  name: 外联部
+                  quota: 15
+                  memberCount: 5
+                  heads:
+                    - id: 3
+                      name: Carol
+                - id: 4
+                  name: 生活部
+                  quota: 10
+                  memberCount: 3
+                  heads:
+                    - id: 4
+                      name: Dave
+                - id: 5
+                  name: 运营部
+                  quota: 10
+                  memberCount: 2
+                  heads:
+                    - id: 5
+                      name: Eve
+                - id: 6
+                  name: 学术部
+                  quota: 8
+                  memberCount: 3
+                  heads:
+                    - id: 6
+                      name: Francis
+                - id: 7
+                  name: 办公室
+                  quota: 8
+                  memberCount: 2
+                  heads:
+                    - id: 7
+                      name: Grace
+                - id: 8
+                  name: 文艺部
+                  quota: 10
+                  memberCount: 3
+                  heads:
+                    - id: 8
+                      name: Hans
+                - id: 9
+                  name: 体育部
+                  quota: 10
+                  memberCount: 3
+                  heads:
+                    - id: 9
+                      name: Isabella
+
+  /section/{id}:
+    put:
+      tags:
+        - section
+      summary: 更新部门，仅主席
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: integer
+          required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  description: 新的部门名称
+                  type: string
+                quota:
+                  description: 部门招新配额
+                  type: integer
+      responses:
+        200:
+          description: 更新成功
+        403:
+          description: 禁止访问
+        404:
+          description: 部门不存在
+    delete:
+      tags:
+        - section
+      summary: 删除部门，仅主席
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: integer
+          required: true
+      responses:
+        200:
+          description: 删除成功
+        403:
+          description: 禁止访问
+        404:
+          description: 部门不存在
+        409:
+          description: 部门仍有成员
+
+  /section:
+    post:
+      tags:
+        - section
+      summary: 创建部门，仅主席
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  description: 部门名称
+                  type: string
+      responses:
+        200:
+          description: 创建成功
+        403:
+          description: 禁止访问
+
+  /members:
+    get:
+      tags:
+        - member
+      summary: 查询成员
+      parameters:
+        - name: page
+          in: query
+          description: 页号，每页 20 条
+          schema:
+            type: integer
+        - name: name
+          in: query
+          description: 根据姓名查找
+          schema:
+            type: string
+        - name: section
+          in: query
+          description: 根据部门查找
+          schema:
+            type: integer
+      responses:
+        200:
+          description: 成员列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    stuid:
+                      type: string
+                    name:
+                      type: string
+                    grade:
+                      type: string
+                    section:
+                      type: integer
+                    position:
+                      type: string
+                    contact:
+                      type: string
+
+  /member/{id}:
+    put:
+      tags:
+        - member
+      summary: 更新成员，自己或本部部长或主席可更改，部门信息干事自己不可更改
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: integer
+          required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                stuid:
+                  type: string
+                section:
+                  type: integer
+                position:
+                  type: string
+                contact:
+                  type: string
+                oldPassword:
+                  type: string
+                newPassword:
+                  type: string
+      responses:
+        200:
+          description: 更新成功
+        403:
+          description: 禁止访问
+        404:
+          description: 成员不存在
+    delete:
+      tags:
+        - member
+      summary: 删除成员，本部部长或主席可更改
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: integer
+          required: true
+      responses:
+        200:
+          description: 删除成功
+        403:
+          description: 禁止访问
+        404:
+          description: 成员不存在
+
+  /member:
+    post:
+      tags:
+        - member
+      summary: 创建成员，本部部长或主席可创建
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                stuid:
+                  type: string
+                name:
+                  type: string
+                password:
+                  type: string
+                contact:
+                  type: string
+                position:
+                  type: string
+                section:
+                  type: integer
+      responses:
+        200:
+          description: 创建成功
+        403:
+          description: 禁止访问
+
+  /termChange:
+    post:
+      summary: 换届，除给出成员外其他所有人退休，指定信任主席和部长
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                chairman:
+                  type: array
+                  items:
+                    type: integer
+                    description: 主席编号
+                sections:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        description: 部门编号
+                      heads:
+                        type: array
+                        items:
+                          type: integer
+                          description: 部长编号
+      responses:
+        200:
+          description: 换届成功
+        403:
+          description: 禁止访问
+  /candidate/status:
+    get:
+      summary: 获取当前系统状态
+      tags:
+        - candidate
+      responses:
+        200:
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  openRegister:
+                    type: boolean
+              example:
+                openRegister: true

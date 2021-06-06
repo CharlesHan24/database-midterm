@@ -1,0 +1,26 @@
+#login.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>请登陆会员账号</title>
+</head>
+<body>
+    <h2>请登陆您的会员账号</h2>
+    <form action='{{ url_for('.redirect_to_new_url') }}' method="POST">
+        <table>
+            <tr>
+                <td>会员名：</td>
+                <td><input type="text" name='username' placeholder="Username" value="BIKMIN"></td>
+            </tr>
+            <tr>
+                <td>密码：</td>
+                <td><input type="password" name='password' placeholder="Password"></td>
+            </tr>
+            <tr>
+                <td><input type="submit" value="登陆"></td>
+            </tr>
+        </table>
+    </form>
+</body>
+</html>
